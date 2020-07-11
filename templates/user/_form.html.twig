@@ -1,0 +1,9 @@
+{{ form_start(form) }}
+    {{ form_errors(form) }}
+
+    {{ form_row(form.email, {'label': 'Email: '}) }}
+    {{ form_row(form.password, {'label': 'Senha: ', attr: {'value': ''}}) }}
+
+    <button class="btn">{{ button_label|default('Save') }}</button>
+{{ form_end(form) }}
+
