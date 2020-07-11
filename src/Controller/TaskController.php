@@ -19,10 +19,10 @@ class TaskController extends AbstractController
     /**
      * @Route("/", name="task_index", methods={"GET"})
      */
-    public function index(TaskRepository $taskRepository, UserInterface $user, Request $request): Response
+    public function index(TaskRepository $taskRepository, UserInterface $userLogged, Request $request): Response
     {
         $page = $request->query->getInt('page', 1);
-        $tasks = $user->getTasks();
+        $tasks = $userLogged->getTasks();
 
         return $this->render('task/index.html.twig', [
             'tasks' => $tasks
@@ -32,14 +32,14 @@ class TaskController extends AbstractController
     /**
      * @Route("/new", name="task_new", methods={"GET","POST"})
      */
-    public function new(Request $request, UserInterface $user): Response
+    public function new(Request $request, UserInterface $userLogged): Response
     {
         $task = new Task();
         $form = $this->createForm(TaskType::class, $task);
 
         $task_form = $request->request->get('task');
         if($task_form) {
-            $task_form['user'] = (string)$user->getId();
+            $task_form['user'] = (string)$userLogged->getId();
         }
         $request->request->set('task', $task_form);
         

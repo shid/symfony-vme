@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * @Route("/user")
@@ -31,11 +32,9 @@ class UserController extends AbstractController
      */
     public function new(Request $request, UserPasswordEncoderInterface $encoder): Response
     {
-        $user = new User();
-        $form = $this->createForm(UserType::class, $user);
-
-
         try {
+            $user = new User();
+            $form = $this->createForm(UserType::class, $user);
             $user_form = $request->request->get('user');
             if($user_form) {
                 $user_form['password'] = $encoder->encodePassword($user, $user_form['password']);
@@ -62,14 +61,15 @@ class UserController extends AbstractController
             $error = str_contains($e->getMessage(), 'SQLSTATE[23000]') ? 'Email already exists.' : $e->getMessage();
             return $this->render('user/new.html.twig', ['form' => $form->createView(), 'error' => $error]);
         }
-
     }
 
     /**
      * @Route("/{id}", name="user_show", methods={"GET"})
      */
-    public function show(User $user): Response
+    public function show(User $user, UserInterface $userLogged): Response
     {
+        if($userLogged->getId() !== $user->getId()) return $this->redirectToRoute('task_index');
+
         return $this->render('user/show.html.twig', [
             'user' => $user,
         ]);
@@ -78,34 +78,44 @@ class UserController extends AbstractController
     /**
      * @Route("/{id}/edit", name="user_edit", methods={"GET","POST"})
      */
-    public function edit(Request $request, User $user, UserPasswordEncoderInterface $encoder): Response
+    public function edit(Request $request, User $user, UserInterface $userLogged, UserPasswordEncoderInterface $encoder): Response
     {
-        $form = $this->createForm(UserType::class, $user);
+        if($userLogged->getId() !== $user->getId()) return $this->redirectToRoute('task_index');
 
-        $user_form = $request->request->get('user');
-        if($user_form) {
-            $user_form['password'] = $encoder->encodePassword($user, $user_form['password']);
+        try{
+            $form = $this->createForm(UserType::class, $user);
+
+            $user_form = $request->request->get('user');
+
+            if($user_form) $user_form['password'] = $encoder->encodePassword($user, $user_form['password']);
+
+            $request->request->set('user', $user_form);
+
+            $form->handleRequest($request);
+            if ($form->isSubmitted() && $form->isValid()) {
+                $this->getDoctrine()->getManager()->flush();
+
+                return $this->redirectToRoute('user_index');
+            }
+
+            return $this->render('user/edit.html.twig', [
+                'user' => $user,
+                'form' => $form->createView(),
+                'error' => null
+            ]);
+        } catch (\Exception $e) {
+            $error = str_contains($e->getMessage(), 'SQLSTATE[23000]') ? 'Email already exists.' : $e->getMessage();
+            return $this->render('user/new.html.twig', ['form' => $form->createView(), 'error' => $error]);
         }
-        $request->request->set('user', $user_form);
-
-        $form->handleRequest($request);
-        if ($form->isSubmitted() && $form->isValid()) {
-            $this->getDoctrine()->getManager()->flush();
-
-            return $this->redirectToRoute('user_index');
-        }
-
-        return $this->render('user/edit.html.twig', [
-            'user' => $user,
-            'form' => $form->createView(),
-        ]);
     }
 
     /**
      * @Route("/{id}", name="user_delete", methods={"DELETE"})
      */
-    public function delete(Request $request, User $user): Response
+    public function delete(Request $request, User $user, UserInterface $userLogged): Response
     {
+        if($userLogged->getId() !== $user->getId()) return $this->redirectToRoute('task_index');
+
         if ($this->isCsrfTokenValid('delete'.$user->getId(), $request->request->get('_token'))) {
             $entityManager = $this->getDoctrine()->getManager();
             $entityManager->remove($user);

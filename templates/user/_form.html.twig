@@ -10,14 +10,7 @@
                 {{ form_row(form.email, {'label': 'Email', 'attr': {'class': 'form-control'}}) }}
             </div>
             <div class="form-group col-md-4">
-                {{ form_row(form.password, {
-                    'label': 'Senha',
-                    'value': '',
-                    'attr': {
-                        'class': 'form-control',
-                        'type': 'password'
-                    }
-                }) }}
+                {{ form_row(form.password, { 'attr': { 'class': 'form-control'}}) }}
             </div>
         </div>
     </div>
