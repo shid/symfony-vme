@@ -29,24 +29,40 @@ class UserController extends AbstractController
     /**
      * @Route("/new", name="user_new", methods={"GET","POST"})
      */
-    public function new(Request $request): Response
+    public function new(Request $request, UserPasswordEncoderInterface $encoder): Response
     {
         $user = new User();
         $form = $this->createForm(UserType::class, $user);
-        $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager = $this->getDoctrine()->getManager();
-            $entityManager->persist($user);
-            $entityManager->flush();
 
-            return $this->redirectToRoute('user_index');
+        try {
+            $user_form = $request->request->get('user');
+            if($user_form) {
+                $user_form['password'] = $encoder->encodePassword($user, $user_form['password']);
+            }
+            $request->request->set('user', $user_form);
+
+            $form->handleRequest($request);
+
+            if ($form->isSubmitted() && $form->isValid()) {
+                $entityManager = $this->getDoctrine()->getManager();
+                $entityManager->persist($user);
+                $entityManager->flush();
+
+                return $this->redirectToRoute('user_index');
+            }
+
+            return $this->render('user/new.html.twig', [
+                'user' => $user,
+                'form' => $form->createView(),
+                'error' => null
+            ]);
+            return $this->redirect($pathinfo, $ret['_route'] ?? null, $this->context->getScheme()) + $ret;
+        } catch (\Exception $e) {
+            $error = str_contains($e->getMessage(), 'SQLSTATE[23000]') ? 'Email already exists.' : $e->getMessage();
+            return $this->render('user/new.html.twig', ['form' => $form->createView(), 'error' => $error]);
         }
 
-        return $this->render('user/new.html.twig', [
-            'user' => $user,
-            'form' => $form->createView(),
-        ]);
     }
 
     /**
@@ -67,11 +83,11 @@ class UserController extends AbstractController
         $form = $this->createForm(UserType::class, $user);
 
         $user_form = $request->request->get('user');
-
         if($user_form) {
             $user_form['password'] = $encoder->encodePassword($user, $user_form['password']);
         }
         $request->request->set('user', $user_form);
+
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             $this->getDoctrine()->getManager()->flush();

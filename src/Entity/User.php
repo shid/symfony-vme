@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoder;
@@ -20,6 +22,11 @@ class User implements UserInterface
     private $id;
 
     /**
+     * @ORM\Column(type="string", length=180)
+     */
+    private $name;
+
+    /**
      * @ORM\Column(type="string", length=180, unique=true)
      */
     private $email;
@@ -35,9 +42,31 @@ class User implements UserInterface
      */
     private $password;
 
+    /**
+     * @ORM\OneToMany(targetEntity=Task::class, mappedBy="user", orphanRemoval=true)
+     */
+    private $tasks;
+
+    public function __construct()
+    {
+        $this->tasks = new ArrayCollection();
+    }
+
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function setName(string $name): self
+    {
+        $this->name = $name;
+
+        return $this;
     }
 
     public function getEmail(): ?string
@@ -50,6 +79,14 @@ class User implements UserInterface
         $this->email = $email;
 
         return $this;
+    }
+
+    public function checkEmail(string $email): self
+    {
+
+        $emailExists = $this->findOneBy(['email' => $email]);
+
+        return $emailExists ? true : false;
     }
 
     /**
@@ -113,5 +150,40 @@ class User implements UserInterface
     {
         // If you store any temporary, sensitive data on the user, clear it here
         // $this->plainPassword = null;
+    }
+
+    /**
+     * @return Collection|Task[]
+     */
+    public function getTasks(): Collection
+    {
+        return $this->tasks;
+    }
+
+    public function addTask(Task $task): self
+    {
+        if (!$this->tasks->contains($task)) {
+            $this->tasks[] = $task;
+            $task->setUserId($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTask(Task $task): self
+    {
+        if ($this->tasks->contains($task)) {
+            $this->tasks->removeElement($task);
+            // set the owning side to null (unless already changed)
+            if ($task->getUserId() === $this) {
+                $task->setUserId(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function __toString() {
+        return (string)$this->name;
     }
 }
